@@ -7,64 +7,80 @@ import { randomIntBetween } from "https://jslib.k6.io/k6-utils/1.2.0/index.js";
 const errorRate = new Rate("error_rate");
 const requestDuration = new Trend("request_duration");
 
+// Get scenario from environment variable
+const SELECTED_SCENARIO = __ENV.SCENARIO || "all";
+
+// Define all scenario configurations
+const scenarioConfigs = {
+  smoke: {
+    executor: "constant-vus",
+    vus: 1,
+    duration: "30s",
+    tags: { test_type: "smoke" },
+  },
+  load: {
+    executor: "ramping-vus",
+    startVUs: 1,
+    stages: [
+      { duration: "1m", target: 10 },
+      { duration: "3m", target: 10 },
+      { duration: "1m", target: 0 },
+    ],
+    gracefulRampDown: "30s",
+    tags: { test_type: "load" },
+  },
+  stress: {
+    executor: "ramping-vus",
+    startVUs: 1,
+    stages: [
+      { duration: "2m", target: 50 },
+      { duration: "5m", target: 50 },
+      { duration: "2m", target: 100 },
+      { duration: "5m", target: 100 },
+      { duration: "2m", target: 0 },
+    ],
+    gracefulRampDown: "30s",
+    tags: { test_type: "stress" },
+  },
+  spike: {
+    executor: "ramping-vus",
+    startVUs: 1,
+    stages: [
+      { duration: "10s", target: 1 },
+      { duration: "1m", target: 100 },
+      { duration: "3m", target: 100 },
+      { duration: "1m", target: 1 },
+    ],
+    gracefulRampDown: "30s",
+    tags: { test_type: "spike" },
+  },
+  soak: {
+    executor: "constant-vus",
+    vus: 5,
+    duration: "30m",
+    tags: { test_type: "soak" },
+  },
+};
+
+// Determine which scenarios to include
+const activeScenarios = {};
+if (SELECTED_SCENARIO === "all") {
+  // Include all scenarios
+  Object.assign(activeScenarios, scenarioConfigs);
+} else if (scenarioConfigs[SELECTED_SCENARIO]) {
+  // Include only the selected scenario
+  activeScenarios[SELECTED_SCENARIO] = scenarioConfigs[SELECTED_SCENARIO];
+} else {
+  console.error(
+    `Unknown scenario: ${SELECTED_SCENARIO}. Defaulting to smoke test.`
+  );
+  activeScenarios.smoke = scenarioConfigs.smoke;
+}
+
 // Test configuration
 export const options = {
-  // Test scenarios with different user loads
-  scenarios: {
-    // Smoke test - just to verify the API works
-    smoke: {
-      executor: "constant-vus",
-      vus: 1,
-      duration: "30s",
-      tags: { test_type: "smoke" },
-    },
-    // Load test - moderate number of users
-    load: {
-      executor: "ramping-vus",
-      startVUs: 1,
-      stages: [
-        { duration: "1m", target: 10 },
-        { duration: "3m", target: 10 },
-        { duration: "1m", target: 0 },
-      ],
-      gracefulRampDown: "30s",
-      tags: { test_type: "load" },
-    },
-    // Stress test - find the breaking point
-    stress: {
-      executor: "ramping-vus",
-      startVUs: 1,
-      stages: [
-        { duration: "2m", target: 50 },
-        { duration: "5m", target: 50 },
-        { duration: "2m", target: 100 },
-        { duration: "5m", target: 100 },
-        { duration: "2m", target: 0 },
-      ],
-      gracefulRampDown: "30s",
-      tags: { test_type: "stress" },
-    },
-    // Spike test - sudden surge of users
-    spike: {
-      executor: "ramping-vus",
-      startVUs: 1,
-      stages: [
-        { duration: "10s", target: 1 },
-        { duration: "1m", target: 100 },
-        { duration: "3m", target: 100 },
-        { duration: "1m", target: 1 },
-      ],
-      gracefulRampDown: "30s",
-      tags: { test_type: "spike" },
-    },
-    // Soak test - run for a long time with constant load
-    soak: {
-      executor: "constant-vus",
-      vus: 5,
-      duration: "30m",
-      tags: { test_type: "soak" },
-    },
-  },
+  // Only include active scenarios
+  scenarios: activeScenarios,
   thresholds: {
     // Define performance objectives
     http_req_duration: ["p(95)<500", "p(99)<1500"], // 95% of requests should be below 500ms, 99% below 1.5s
@@ -74,6 +90,7 @@ export const options = {
   },
 };
 
+// Rest of the code remains the same...
 // Default function that is executed for each virtual user
 export default function () {
   const url = "https://api.gleefun.io/api/v1/blockchains";
@@ -119,7 +136,7 @@ export default function () {
   sleep(randomIntBetween(1, 3));
 }
 
-// Function to handle test lifecycle events (optional)
+// Functions for test lifecycle events
 export function setup() {
   console.log("Test setup - any preparations can be done here");
   // You could perform auth, create test data, etc.

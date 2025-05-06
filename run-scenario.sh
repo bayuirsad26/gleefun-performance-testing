@@ -8,4 +8,4 @@ fi
 SCENARIO=$1
 
 echo "Running $SCENARIO test scenario..."
-docker-compose run k6 run --tag scenario=$SCENARIO /tests/blockchain-api-test.js
+docker-compose run -e SCENARIO=$SCENARIO k6
