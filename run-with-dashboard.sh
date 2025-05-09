@@ -1,13 +1,18 @@
 #!/bin/bash
 
-# Create results directory if it doesn't exist
-mkdir -p results
+# Check if a scenario was provided
+if [ -z "$1" ]; then
+  echo "Usage: ./run-with-dashboard.sh [smoke|load|stress|spike|soak|all]"
+  exit 1
+fi
+
+SCENARIO=$1
 
 # Run the test with InfluxDB output
 docker-compose up -d influxdb grafana
 echo "Waiting for InfluxDB to start..."
 sleep 10
-docker-compose run -e K6_OUT="influxdb=http://influxdb:8086/k6" k6
+docker-compose run -e SCENARIO=$SCENARIO -e K6_OUT="influxdb=http://influxdb:8086/k6" k6
 
 echo ""
 echo "Test completed! View results at http://localhost:3000"

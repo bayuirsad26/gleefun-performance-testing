@@ -3,9 +3,6 @@ services:
     image: grafana/k6:latest
     volumes:
       - ./tests:/tests
-      - ./results:/results
-    environment:
-      - K6_OUT=json=/results/result.json
     command: run /tests/blockchain-api-test.js
     # Uncomment the next line to run a specific scenario
     # command: run --tag scenario=smoke /tests/blockchain-api-test.js
