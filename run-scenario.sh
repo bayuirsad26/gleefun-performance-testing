@@ -8,4 +8,4 @@ fi
 SCENARIO=$1
 
 echo "Running $SCENARIO test scenario..."
-docker-compose run -e SCENARIO=$SCENARIO k6
+docker-compose run --rm -e SCENARIO=$SCENARIO k6

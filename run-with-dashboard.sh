@@ -8,16 +8,59 @@ fi
 
 SCENARIO=$1
 
-# Run the test with InfluxDB output
+# Create directories for Grafana provisioning if they don't exist
+mkdir -p grafana/provisioning/datasources
+mkdir -p grafana/provisioning/dashboards
+mkdir -p grafana/dashboards
+
+# Create or update Grafana datasource configuration
+cat > grafana/provisioning/datasources/influxdb.yml <<EOF
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: k6
+    isDefault: true
+    editable: true
+EOF
+
+# Create or update Grafana dashboard provisioning
+cat > grafana/provisioning/dashboards/k6.yml <<EOF
+apiVersion: 1
+
+providers:
+  - name: 'K6 Dashboards'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+EOF
+
+# Run the test with InfluxDB
+echo "Starting InfluxDB and Grafana..."
 docker-compose up -d influxdb grafana
+
 echo "Waiting for InfluxDB to start..."
 sleep 10
-docker-compose run -e SCENARIO=$SCENARIO -e K6_OUT="influxdb=http://influxdb:8086/k6" k6
+
+echo "Running $SCENARIO test scenario..."
+docker-compose run --rm -e SCENARIO=$SCENARIO k6
 
 echo ""
 echo "Test completed! View results at http://localhost:3000"
 echo "Default Grafana credentials: admin/admin"
 echo ""
-echo "If this is your first time, you'll need to:"
-echo "1. Add InfluxDB as a data source (URL: http://influxdb:8086, Database: k6)"
-echo "2. Import a k6 dashboard from https://grafana.com/grafana/dashboards/2587"
+echo "In Grafana, go to Dashboards > Browse > New Dashboard to create a custom view"
+echo "Select visualization panels to add metrics like:"
+echo "- http_req_duration by percentiles"
+echo "- error_rate"
+echo "- successful_checks"
+echo "- requests per second"
+echo ""
+echo "Use test_type='${SCENARIO}' as a query filter to view this specific test run."
